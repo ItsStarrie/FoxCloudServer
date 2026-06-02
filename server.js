@@ -1,37 +1,59 @@
 const WebSocket = require("ws");
 
-const server = new WebSocket.Server({ port: process.env.PORT || 10000 });
+const port = process.env.PORT || 10000;
+const wss = new WebSocket.Server({ port });
 
 const players = {};
 
-server.on("connection", (ws) => {
-    const id = Math.random().toString(36).slice(2);
+function broadcastPlayers() {
+    const packet = JSON.stringify({
+        type: "players",
+        players
+    });
 
-    players[id] = { x: 0, y: 0 };
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(packet);
+        }
+    });
+}
 
-    ws.on("message", (msg) => {
+wss.on("connection", ws => {
+    const id =
+        Date.now().toString(36) +
+        Math.random().toString(36).slice(2, 8);
+
+    players[id] = {
+        x: 0,
+        y: 0
+    };
+
+    ws.playerId = id;
+
+    ws.send(JSON.stringify({
+        type: "welcome",
+        id
+    }));
+
+    broadcastPlayers();
+
+    ws.on("message", msg => {
         try {
             const data = JSON.parse(msg);
 
             if (data.type === "move") {
-                players[id] = {
-                    x: data.x,
-                    y: data.y
-                };
+                players[id].x = Number(data.x) || 0;
+                players[id].y = Number(data.y) || 0;
             }
         } catch {}
     });
 
     ws.on("close", () => {
         delete players[id];
+        broadcastPlayers();
     });
-
-    const interval = setInterval(() => {
-        ws.send(JSON.stringify({
-            type: "players",
-            players
-        }));
-    }, 50);
-
-    ws.on("close", () => clearInterval(interval));
 });
+
+setInterval(broadcastPlayers, 50);
+
+console.log("Server running");
