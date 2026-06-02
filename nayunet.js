@@ -1,42 +1,97 @@
 class NayuNet {
     constructor() {
         this.ws = null;
+        this.connectedState = false;
+
+        this.myId = "";
         this.players = {};
     }
 
     getInfo() {
         return {
-            id: 'nayunet',
-            name: 'NayuNet',
+            id: "nayunet",
+            name: "NayuNet",
+
             blocks: [
                 {
-                    opcode: 'connect',
+                    opcode: "connect",
                     blockType: Scratch.BlockType.COMMAND,
-                    text: 'connect'
+                    text: "connect"
                 },
                 {
-                    opcode: 'sendPosition',
+                    opcode: "disconnect",
                     blockType: Scratch.BlockType.COMMAND,
-                    text: 'send position x [X] y [Y]',
+                    text: "disconnect"
+                },
+                {
+                    opcode: "connected",
+                    blockType: Scratch.BlockType.BOOLEAN,
+                    text: "connected?"
+                },
+                {
+                    opcode: "myid",
+                    blockType: Scratch.BlockType.REPORTER,
+                    text: "my id"
+                },
+                {
+                    opcode: "sendPosition",
+                    blockType: Scratch.BlockType.COMMAND,
+                    text: "send my position x [X] y [Y]",
                     arguments: {
-                        X: { type: Scratch.ArgumentType.NUMBER },
-                        Y: { type: Scratch.ArgumentType.NUMBER }
+                        X: {
+                            type: Scratch.ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        Y: {
+                            type: Scratch.ArgumentType.NUMBER,
+                            defaultValue: 0
+                        }
                     }
                 },
                 {
-                    opcode: 'getPlayerX',
+                    opcode: "playerCount",
                     blockType: Scratch.BlockType.REPORTER,
-                    text: 'player x of [ID]',
+                    text: "player count"
+                },
+                {
+                    opcode: "playerId",
+                    blockType: Scratch.BlockType.REPORTER,
+                    text: "player id # [INDEX]",
                     arguments: {
-                        ID: { type: Scratch.ArgumentType.STRING }
+                        INDEX: {
+                            type: Scratch.ArgumentType.NUMBER,
+                            defaultValue: 1
+                        }
                     }
                 },
                 {
-                    opcode: 'getPlayerY',
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: 'player y of [ID]',
+                    opcode: "playerExists",
+                    blockType: Scratch.BlockType.BOOLEAN,
+                    text: "player exists [ID]",
                     arguments: {
-                        ID: { type: Scratch.ArgumentType.STRING }
+                        ID: {
+                            type: Scratch.ArgumentType.STRING
+                        }
+                    }
+                },
+                {
+                    opcode: "playerX",
+                    blockType: Scratch.BlockType.REPORTER,
+                    text: "x of player [ID]",
+                    arguments: {
+                        ID: {
+                            type: Scratch.ArgumentType.STRING
+                        }
+                    }
+                },
+                {
+                    opcode: "playerY",
+                    blockType: Scratch.BlockType.REPORTER,
+                    text: "y of player [ID]",
+                    arguments: {
+                        ID: {
+                            type: Scratch.ArgumentType.STRING
+                        }
                     }
                 }
             ]
@@ -44,19 +99,52 @@ class NayuNet {
     }
 
     connect() {
-        this.ws = new WebSocket('wss://projectnayu.onrender.com');
+        if (this.ws) return;
+
+        this.ws = new WebSocket(
+            "wss://projectnayu.onrender.com"
+        );
+
+        this.ws.onopen = () => {
+            this.connectedState = true;
+        };
+
+        this.ws.onclose = () => {
+            this.connectedState = false;
+            this.ws = null;
+        };
 
         this.ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+            try {
+                const data = JSON.parse(event.data);
 
-            if (data.type === "players") {
-                this.players = data.players;
-            }
+                if (data.type === "welcome") {
+                    this.myId = data.id;
+                }
+
+                if (data.type === "players") {
+                    this.players = data.players;
+                }
+            } catch {}
         };
     }
 
+    disconnect() {
+        if (this.ws) {
+            this.ws.close();
+        }
+    }
+
+    connected() {
+        return this.connectedState;
+    }
+
+    myid() {
+        return this.myId;
+    }
+
     sendPosition(args) {
-        if (!this.ws) return;
+        if (!this.connectedState) return;
 
         this.ws.send(JSON.stringify({
             type: "move",
@@ -65,12 +153,25 @@ class NayuNet {
         }));
     }
 
-    getPlayerX(args) {
-        return this.players[args.ID]?.x || 0;
+    playerCount() {
+        return Object.keys(this.players).length;
     }
 
-    getPlayerY(args) {
-        return this.players[args.ID]?.y || 0;
+    playerId(args) {
+        const ids = Object.keys(this.players);
+        return ids[Number(args.INDEX) - 1] || "";
+    }
+
+    playerExists(args) {
+        return this.players.hasOwnProperty(args.ID);
+    }
+
+    playerX(args) {
+        return this.players[args.ID]?.x ?? 0;
+    }
+
+    playerY(args) {
+        return this.players[args.ID]?.y ?? 0;
     }
 }
 
