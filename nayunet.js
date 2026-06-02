@@ -5,6 +5,10 @@ class NayuNet {
 
         this.myId = "";
         this.players = {};
+
+        this.ping = 0;
+        this.lastPingSent = 0;
+        this.pingInterval = null;
     }
 
     getInfo() {
@@ -32,6 +36,11 @@ class NayuNet {
                     opcode: "myid",
                     blockType: Scratch.BlockType.REPORTER,
                     text: "my id"
+                },
+                {
+                    opcode: "getPing",
+                    blockType: Scratch.BlockType.REPORTER,
+                    text: "server ping"
                 },
                 {
                     opcode: "sendPosition",
@@ -101,16 +110,29 @@ class NayuNet {
     connect() {
         if (this.ws) return;
 
-        this.ws = new WebSocket(
-            "wss://projectnayu.onrender.com"
-        );
+        this.ws = new WebSocket("wss://projectnayu.onrender.com");
 
         this.ws.onopen = () => {
             this.connectedState = true;
+
+            this.pingInterval = setInterval(() => {
+                if (!this.connectedState) return;
+
+                this.lastPingSent = Date.now();
+
+                this.ws.send(JSON.stringify({
+                    type: "ping"
+                }));
+            }, 2000);
         };
 
         this.ws.onclose = () => {
             this.connectedState = false;
+
+            if (this.pingInterval) {
+                clearInterval(this.pingInterval);
+            }
+
             this.ws = null;
         };
 
@@ -124,6 +146,10 @@ class NayuNet {
 
                 if (data.type === "players") {
                     this.players = data.players;
+                }
+
+                if (data.type === "pong") {
+                    this.ping = Date.now() - this.lastPingSent;
                 }
             } catch {}
         };
@@ -141,6 +167,10 @@ class NayuNet {
 
     myid() {
         return this.myId;
+    }
+
+    getPing() {
+        return this.ping;
     }
 
     sendPosition(args) {
@@ -163,7 +193,7 @@ class NayuNet {
     }
 
     playerExists(args) {
-        return this.players.hasOwnProperty(args.ID);
+        return Object.prototype.hasOwnProperty.call(this.players, args.ID);
     }
 
     playerX(args) {
