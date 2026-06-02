@@ -45,6 +45,12 @@ wss.on("connection", ws => {
                 players[id].x = Number(data.x) || 0;
                 players[id].y = Number(data.y) || 0;
             }
+
+            if (data.type === "ping") {
+    ws.send(JSON.stringify({
+        type: "pong"
+    }));
+}
         } catch {}
     });
 
