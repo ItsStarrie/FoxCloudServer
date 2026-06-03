@@ -2,7 +2,8 @@
 'use strict';
 
 class NayuNet {
-    constructor() {
+   constructor(Scratch) {
+    this.Scratch = Scratch;
         this.ws = null;
         this.connectedState = false;
 
@@ -178,6 +179,6 @@ color3: "#000000",
     }
 }
 
-Scratch.extensions.register(new NayuNet());
+Scratch.extensions.register(new NayuNet(Scratch));
 
 })(Scratch);
