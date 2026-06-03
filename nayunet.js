@@ -22,6 +22,7 @@ color2: "#111111",
 color3: "#000000",
 
         menuIconURI: "https://icons.iconarchive.com/icons/raindropmemory/laboratory/72/Girl-in-a-Box-icon.png",
+        blockIconURI: "https://icons.iconarchive.com/icons/raindropmemory/laboratory/72/Girl-in-a-Box-icon.png",
 
         blocks: [
                 { opcode: "connect", blockType: Scratch.BlockType.COMMAND, text: "connect" },
