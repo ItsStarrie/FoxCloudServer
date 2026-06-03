@@ -1,3 +1,6 @@
+(function(Scratch) {
+'use strict';
+
 class NayuNet {
     constructor() {
         this.ws = null;
@@ -71,11 +74,12 @@ color3: "#000000",
                 },
 
                 // NEW HAT BLOCK
-                {
-                    opcode: "playerJoin",
-                    blockType: Scratch.BlockType.HAT,
-                    text: "when player joins"
-                },
+            {
+    opcode: "playerJoin",
+    blockType: Scratch.BlockType.HAT,
+    text: "when player joins",
+    isEdgeActivated: true
+},
 
                 // NEW REPORTER
                 {
@@ -175,3 +179,5 @@ color3: "#000000",
 }
 
 Scratch.extensions.register(new NayuNet());
+
+})(Scratch);
