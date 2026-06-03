@@ -6,9 +6,8 @@ class NayuNet {
         this.myId = "";
         this.players = {};
 
-        this.ping = 0;
-        this.lastPingSent = 0;
-        this.pingInterval = null;
+        this.clones = {}; // id -> clone
+        this.targetSprite = null;
     }
 
     getInfo() {
@@ -17,95 +16,31 @@ class NayuNet {
             name: "NayuNet",
 
             blocks: [
+                { opcode: "connect", blockType: Scratch.BlockType.COMMAND, text: "connect" },
+
                 {
-                    opcode: "connect",
+                    opcode: "attachSprite",
                     blockType: Scratch.BlockType.COMMAND,
-                    text: "connect"
+                    text: "use sprite as player"
                 },
-                {
-                    opcode: "disconnect",
-                    blockType: Scratch.BlockType.COMMAND,
-                    text: "disconnect"
-                },
-                {
-                    opcode: "connected",
-                    blockType: Scratch.BlockType.BOOLEAN,
-                    text: "connected?"
-                },
-                {
-                    opcode: "myid",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "my id"
-                },
-                {
-                    opcode: "getPing",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "server ping"
-                },
+
                 {
                     opcode: "sendPosition",
                     blockType: Scratch.BlockType.COMMAND,
-                    text: "send my position x [X] y [Y]",
+                    text: "send x [X] y [Y]",
                     arguments: {
-                        X: {
-                            type: Scratch.ArgumentType.NUMBER,
-                            defaultValue: 0
-                        },
-                        Y: {
-                            type: Scratch.ArgumentType.NUMBER,
-                            defaultValue: 0
-                        }
+                        X: { type: Scratch.ArgumentType.NUMBER, defaultValue: 0 },
+                        Y: { type: Scratch.ArgumentType.NUMBER, defaultValue: 0 }
                     }
                 },
-                {
-                    opcode: "playerCount",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "player count"
-                },
-                {
-                    opcode: "playerId",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "player id # [INDEX]",
-                    arguments: {
-                        INDEX: {
-                            type: Scratch.ArgumentType.NUMBER,
-                            defaultValue: 1
-                        }
-                    }
-                },
-                {
-                    opcode: "playerExists",
-                    blockType: Scratch.BlockType.BOOLEAN,
-                    text: "player exists [ID]",
-                    arguments: {
-                        ID: {
-                            type: Scratch.ArgumentType.STRING
-                        }
-                    }
-                },
-                {
-                    opcode: "playerX",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "x of player [ID]",
-                    arguments: {
-                        ID: {
-                            type: Scratch.ArgumentType.STRING
-                        }
-                    }
-                },
-                {
-                    opcode: "playerY",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "y of player [ID]",
-                    arguments: {
-                        ID: {
-                            type: Scratch.ArgumentType.STRING
-                        }
-                    }
-                }
+
+                { opcode: "connected", blockType: Scratch.BlockType.BOOLEAN, text: "connected?" },
+                { opcode: "myid", blockType: Scratch.BlockType.REPORTER, text: "my id" }
             ]
         };
     }
+
+    /* ================= CONNECT ================= */
 
     connect() {
         if (this.ws) return;
@@ -114,64 +49,73 @@ class NayuNet {
 
         this.ws.onopen = () => {
             this.connectedState = true;
-
-            this.pingInterval = setInterval(() => {
-                if (!this.connectedState) return;
-
-                this.lastPingSent = Date.now();
-
-                this.ws.send(JSON.stringify({
-                    type: "ping"
-                }));
-            }, 2000);
         };
 
         this.ws.onclose = () => {
             this.connectedState = false;
-
-            if (this.pingInterval) {
-                clearInterval(this.pingInterval);
-            }
-
             this.ws = null;
         };
 
         this.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
+            const data = JSON.parse(event.data);
 
-                if (data.type === "welcome") {
-                    this.myId = data.id;
-                }
+            if (data.type === "welcome") {
+                this.myId = data.id;
+            }
 
-                if (data.type === "players") {
-                    this.players = data.players;
-                }
-
-                if (data.type === "pong") {
-                    this.ping = Date.now() - this.lastPingSent;
-                }
-            } catch {}
+            if (data.type === "players") {
+                this.players = data.players;
+                this.updateClones();
+            }
         };
     }
 
-    disconnect() {
-        if (this.ws) {
-            this.ws.close();
+    /* ================= SPRITE LINK ================= */
+
+    attachSprite() {
+        this.targetSprite = Scratch.vm.runtime.getSpriteTarget();
+    }
+
+    /* ================= CLONE SYSTEM ================= */
+
+    updateClones() {
+        if (!this.targetSprite) return;
+
+        const runtime = Scratch.vm.runtime;
+        const me = this.myId;
+
+        const currentIds = Object.keys(this.players);
+
+        // REMOVE OLD CLONES
+        for (let id in this.clones) {
+            if (!this.players[id] || id === me) {
+                this.clones[id]?.kill?.();
+                delete this.clones[id];
+            }
+        }
+
+        // CREATE / UPDATE
+        for (let id of currentIds) {
+            if (id === me) continue;
+
+            let p = this.players[id];
+
+            // create clone if missing
+            if (!this.clones[id]) {
+                const clone = runtime._addClone(this.targetSprite);
+
+                clone.nayunet_id = id;
+
+                this.clones[id] = clone;
+            }
+
+            // update clone position
+            const clone = this.clones[id];
+            clone.setXY(p.x, p.y);
         }
     }
 
-    connected() {
-        return this.connectedState;
-    }
-
-    myid() {
-        return this.myId;
-    }
-
-    getPing() {
-        return this.ping;
-    }
+    /* ================= MOVEMENT ================= */
 
     sendPosition(args) {
         if (!this.connectedState) return;
@@ -183,25 +127,14 @@ class NayuNet {
         }));
     }
 
-    playerCount() {
-        return Object.keys(this.players).length;
+    /* ================= BASIC INFO ================= */
+
+    connected() {
+        return this.connectedState;
     }
 
-    playerId(args) {
-        const ids = Object.keys(this.players);
-        return ids[Number(args.INDEX) - 1] || "";
-    }
-
-    playerExists(args) {
-        return Object.prototype.hasOwnProperty.call(this.players, args.ID);
-    }
-
-    playerX(args) {
-        return this.players[args.ID]?.x ?? 0;
-    }
-
-    playerY(args) {
-        return this.players[args.ID]?.y ?? 0;
+    myid() {
+        return this.myId;
     }
 }
 
