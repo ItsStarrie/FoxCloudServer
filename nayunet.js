@@ -12,12 +12,18 @@ class NayuNet {
         this._lastJoin = "";
     }
 
-    getInfo() {
-        return {
-            id: "nayunet",
-            name: "NayuNet",
+   getInfo() {
+    return {
+        id: "nayunet",
+        name: "NayuNet",
 
-            blocks: [
+       color1: "#222222",
+color2: "#111111",
+color3: "#000000",
+
+        menuIconURI: "https://icons.iconarchive.com/icons/raindropmemory/laboratory/72/Girl-in-a-Box-icon.png",
+
+        blocks: [
                 { opcode: "connect", blockType: Scratch.BlockType.COMMAND, text: "connect" },
 
                 { opcode: "connected", blockType: Scratch.BlockType.BOOLEAN, text: "connected?" },
