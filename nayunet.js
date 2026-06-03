@@ -5,6 +5,11 @@ class NayuNet {
 
         this.myId = "";
         this.players = {};
+
+        // NEW
+        this.prevPlayers = {};
+        this.joinQueue = [];
+        this._lastJoin = "";
     }
 
     getInfo() {
@@ -56,6 +61,20 @@ class NayuNet {
                         X: { type: Scratch.ArgumentType.NUMBER, defaultValue: 0 },
                         Y: { type: Scratch.ArgumentType.NUMBER, defaultValue: 0 }
                     }
+                },
+
+                // NEW HAT BLOCK
+                {
+                    opcode: "playerJoin",
+                    blockType: Scratch.BlockType.HAT,
+                    text: "when player joins"
+                },
+
+                // NEW REPORTER
+                {
+                    opcode: "lastJoinedId",
+                    blockType: Scratch.BlockType.REPORTER,
+                    text: "last joined player id"
                 }
             ]
         };
@@ -83,7 +102,17 @@ class NayuNet {
             }
 
             if (data.type === "players") {
-                this.players = data.players;
+                const newPlayers = data.players;
+
+                // detect joins
+                for (const id in newPlayers) {
+                    if (!this.players[id]) {
+                        this.joinQueue.push(id);
+                        this._lastJoin = id;
+                    }
+                }
+
+                this.players = newPlayers;
             }
         };
     }
@@ -121,6 +150,20 @@ class NayuNet {
             x: Number(args.X),
             y: Number(args.Y)
         }));
+    }
+
+    // ===== NEW BLOCK LOGIC =====
+
+    playerJoin() {
+        if (this.joinQueue.length > 0) {
+            this.joinQueue.shift();
+            return true;
+        }
+        return false;
+    }
+
+    lastJoinedId() {
+        return this._lastJoin || "";
     }
 }
 
